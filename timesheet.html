@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>月工时统计 · 弹窗输入</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+        body { background: #f2f5f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 12px; }
+        .app { width: 100%; max-width: 480px; background: white; border-radius: 32px; box-shadow: 0 20px 35px -8px rgba(0,0,0,0.15); padding: 22px 16px 24px; position: relative; }
+        h1 { font-size: 24px; font-weight: 700; color: #0b1b32; margin-bottom: 4px; }
+        .subhead { font-size: 14px; color: #5e6f8d; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+        .month-selector { display: flex; gap: 8px; background: #eef2f8; padding: 6px; border-radius: 40px; margin-bottom: 18px; }
+        .month-selector select { flex: 1; border: none; background: white; padding: 12px 8px; border-radius: 30px; font-size: 16px; font-weight: 500; color: #1d3b6e; outline: none; appearance: none; text-align: center; }
+        .target-card { background: #f0f4fe; border-radius: 24px; padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #d9e2f0; }
+        .target-label { font-size: 15px; font-weight: 500; color: #1d3b6e; display: flex; flex-direction: column; gap: 2px; }
+        .target-label span { font-size: 12px; color: #6a7b9b; font-weight: 400; }
+        .toggle-group { display: flex; background: #d9e2f0; border-radius: 40px; padding: 4px; gap: 4px; }
+        .toggle-btn { border: none; background: transparent; padding: 8px 18px; border-radius: 40px; font-size: 15px; font-weight: 600; color: #4a5b7a; transition: 0.2s; cursor: pointer; }
+        .toggle-btn.active { background: white; color: #0a1e3c; box-shadow: 0 4px 12px rgba(0,30,60,0.12); }
+        .stats-summary { display: flex; gap: 10px; margin-bottom: 14px; }
+        .stat-item { background: #f8fafd; border-radius: 18px; padding: 10px 12px; flex: 1; border: 1px solid #e6ecf5; }
+        .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b7c9b; font-weight: 500; margin-bottom: 4px; }
+        .stat-value { font-size: 20px; font-weight: 700; color: #0c2442; line-height: 1.2; }
+        .stat-value small { font-size: 12px; font-weight: 500; color: #6b7c9b; margin-left: 2px; }
+        
+        .week-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 10px; max-height: 420px; overflow-y: auto; padding-right: 2px; }
+        
+        .day-row { display: flex; flex-wrap: wrap; align-items: center; background: #ffffff; border-radius: 16px; padding: 12px; border: 1px solid #e3eaf3; flex-shrink: 0; gap: 8px; transition: 0.2s; }
+        .day-row.future { background: #f9fbfe; opacity: 0.6; pointer-events: none; filter: grayscale(1); border-color: #eef2f8; }
+        
+        .day-name { width: 64px; font-weight: 600; font-size: 13px; color: #1c2f4f; flex-shrink: 0; }
+        
+        /* 触发弹窗的按钮 */
+        .time-btn { 
+            border: 1.5px solid #d9e2ef; background: #f3f7fd; border-radius: 12px; 
+            padding: 8px 12px; font-size: 14px; font-weight: 600; color: #0b1b32; 
+            display: flex; align-items: center; justify-content: center; min-width: 80px;
+            transition: 0.15s; outline: none; cursor: pointer;
+        }
+        .time-btn.active { border-color: #3970c0; color: #3970c0; background: #eef4ff; }
+        .time-btn .placeholder { color: #a5b4cc; font-weight: 400; }
+        
+        .btn-group { display: flex; gap: 6px; margin-left: auto; }
+        .mini-btn { border: none; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .btn-ok { background: #3970c0; color: white; }
+        .btn-ok:active { background: #2a5aa0; }
+        .btn-clear { background: #e8edf5; color: #4a5b7a; }
+        .btn-clear:active { background: #d8e0ec; }
+        
+        .day-hours { width: 58px; text-align: right; font-weight: 700; font-size: 14px; color: #1a3d6b; flex-shrink: 0; }
+        .day-hours small { font-size: 10px; font-weight: 400; color: #8a9bb8; margin-left: 1px; }
+        .day-hours.zero { color: #b0bdd0; }
+        
+        .info-note { background: #ecf3fa; border-radius: 18px; padding: 12px 14px; font-size: 12px; color: #2f4b73; line-height: 1.5; margin-top: 10px; border-left: 4px solid #3970c0; }
+        .info-note strong { font-weight: 600; color: #0f2d58; }
+        .reset-btn { width: 100%; margin-top: 14px; padding: 14px; background: white; border: 1.5px solid #d0ddeb; border-radius: 60px; font-size: 15px; font-weight: 600; color: #2a4b7a; cursor: pointer; }
+        .reset-btn:active { background: #f0f5fe; transform: scale(0.98); }
+        .no-workday { text-align: center; padding: 30px 10px; color: #8a9bb8; font-size: 14px; }
+
+        /* ================= 弹窗样式 ================= */
+        .modal-mask {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; pointer-events: none; transition: 0.2s;
+        }
+        .modal-mask.show { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: white; width: 85%; max-width: 320px;
+            border-radius: 24px; padding: 20px;
+            transform: translateY(20px); transition: 0.2s;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal-mask.show .modal-box { transform: translateY(0); }
+        .modal-title { font-size: 18px; font-weight: 700; color: #0b1b32; margin-bottom: 16px; text-align: center; }
+        
+        .modal-inputs { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; }
+        .modal-inputs input {
+            width: 70px; border: 1.5px solid #d9e2ef; border-radius: 12px;
+            background: #f3f7fd; font-size: 24px; font-weight: 700; color: #0b1b32;
+            padding: 10px; text-align: center; outline: none;
+        }
+        .modal-inputs input:focus { border-color: #3970c0; background: white; }
+        .modal-inputs span { font-size: 24px; font-weight: 700; color: #5e6f8d; }
+        
+        .modal-actions { display: flex; gap: 12px; }
+        .modal-btn { flex: 1; border: none; border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .modal-btn.cancel { background: #e8edf5; color: #4a5b7a; }
+        .modal-btn.cancel:active { background: #d8e0ec; }
+        .modal-btn.confirm { background: #3970c0; color: white; }
+        .modal-btn.confirm:active { background: #2a5aa0; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <h1>⏱️ 月工时统计</h1>
+    <div class="subhead"><span>工作日 · 未来日期锁定</span><span id="workdayCountBadge" class="badge">—</span></div>
+
+    <div class="month-selector">
+        <select id="yearSelect"></select>
+        <select id="monthSelect"></select>
+    </div>
+
+    <div class="target-card">
+        <div class="target-label">日均目标<span>严格大于</span></div>
+        <div class="toggle-group" id="targetToggle">
+            <button class="toggle-btn" data-target="9.2">9.2h</button>
+            <button class="toggle-btn active" data-target="9.5">9.5h</button>
+        </div>
+    </div>
+
+    <div class="stats-summary">
+        <div class="stat-item"><div class="stat-label">总工时</div><div class="stat-value" id="totalHours">0.00<small>h</small></div></div>
+        <div class="stat-item"><div class="stat-label">日均</div><div class="stat-value" id="avgHours">0.00<small>h</small></div></div>
+        <div class="stat-item"><div class="stat-label">达标</div><div class="stat-value" id="statusDisplay" style="font-size:16px;">—</div></div>
+    </div>
+
+    <div class="week-list" id="weekList"></div>
+
+    <div class="info-note">
+        <strong>⏳ 不计入：</strong> 午休 12:00–13:30 · 晚餐 17:30–18:00
+    </div>
+
+    <button class="reset-btn" id="resetBtn">↺ 重置本月所有时间</button>
+</div>
+
+<!-- ================= 自定义弹窗 ================= -->
+<div class="modal-mask" id="timeModal">
+    <div class="modal-box">
+        <div class="modal-title" id="modalTitle">设置时间</div>
+        <div class="modal-inputs">
+            <!-- 这里使用 type="tel" 让手机直接弹出纯数字键盘 -->
+            <input type="tel" inputmode="numeric" pattern="[0-9]*" id="modalHour" maxlength="2" placeholder="时">
+            <span>:</span>
+            <input type="tel" inputmode="numeric" pattern="[0-9]*" id="modalMinute" maxlength="2" placeholder="分">
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" id="modalClear">清除</button>
+            <button class="modal-btn confirm" id="modalConfirm">确定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ================= 法定节假日 =================
+    const HOLIDAYS_BY_YEAR = {
+        2024: new Set([
+            '2024-01-01','2024-02-10','2024-02-11','2024-02-12','2024-02-13','2024-02-14','2024-02-15','2024-02-16','2024-02-17','2024-04-04','2024-04-05','2024-04-06','2024-05-01','2024-05-02','2024-05-03','2024-05-04','2024-05-05','2024-06-10','2024-09-15','2024-09-16','2024-09-17','2024-10-01','2024-10-02','2024-10-03','2024-10-04','2024-10-05','2024-10-06','2024-10-07',
+        ]),
+        2025: new Set([
+            '2025-01-01','2025-01-28','2025-01-29','2025-01-30','2025-01-31','2025-02-01','2025-02-02','2025-02-03','2025-02-04','2025-04-04','2025-04-05','2025-04-06','2025-05-01','2025-05-02','2025-05-03','2025-05-04','2025-05-05','2025-05-31','2025-06-01','2025-06-02','2025-10-01','2025-10-02','2025-10-03','2025-10-04','2025-10-05','2025-10-06','2025-10-07','2025-10-08',
+        ]),
+        2026: new Set([
+            '2026-01-01','2026-01-02','2026-01-03','2026-02-15','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-21','2026-02-22','2026-02-23','2026-04-04','2026-04-05','2026-04-06','2026-05-01','2026-05-02','2026-05-03','2026-05-04','2026-05-05','2026-06-19','2026-06-20','2026-06-21','2026-09-25','2026-09-26','2026-09-27','2026-10-01','2026-10-02','2026-10-03','2026-10-04','2026-10-05','2026-10-06','2026-10-07',
+        ]),
+        2027: new Set([
+            '2027-01-01','2027-01-02','2027-01-03','2027-04-03','2027-04-04','2027-04-05','2027-06-09','2027-09-15','2027-10-01','2027-10-02','2027-10-03','2027-10-04','2027-10-05','2027-10-06','2027-10-07',
+        ]),
+    };
+    function getHolidaysForYear(year) { return HOLIDAYS_BY_YEAR[year] || new Set(); }
+
+    // ---------- 工具 ----------
+    function getDaysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+    function getDayOfWeek(y, m, d) { return new Date(y, m - 1, d).getDay(); }
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function formatDateLabel(y, m, d) {
+        const w = getDayOfWeek(y, m, d);
+        const names = ['周日','周一','周二','周三','周四','周五','周六'];
+        return `${m}/${d} ${names[w]}`;
+    }
+    function isFutureDate(y, m, d) {
+        const today = new Date();
+        const target = new Date(y, m - 1, d);
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        return target > todayMidnight;
+    }
+    function timeToMinutes(t) {
+        if (!t || !/^\d{1,2}:\d{2}$/.test(t.trim())) return null;
+        const [h, m] = t.trim().split(':').map(Number);
+        if (isNaN(h) || isNaN(m) || h > 23 || m > 59) return null;
+        return h * 60 + m;
+    }
+    function calcFromTimes(startStr, endStr) {
+        const s = timeToMinutes(startStr), e = timeToMinutes(endStr);
+        if (s === null || e === null || e <= s) return 0;
+        let total = 0;
+        for (let m = s; m < e; m++) {
+            if (!(m >= 720 && m < 810) && !(m >= 1050 && m < 1080)) total++;
+        }
+        return total / 60;
+    }
+
+    // ---------- 状态 ----------
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth() + 1;
+    let currentTarget = 9.5;
+
+    function loadWorkData() {
+        try {
+            const raw = localStorage.getItem('workHoursPopups');
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
+    }
+    function saveWorkData() {
+        try { localStorage.setItem('workHoursPopups', JSON.stringify(workData)); } catch (e) {}
+    }
+
+    let workData = loadWorkData();
+
+    // DOM
+    const yearSelect = document.getElementById('yearSelect');
+    const monthSelect = document.getElementById('monthSelect');
+    const weekListEl = document.getElementById('weekList');
+    const totalHoursEl = document.getElementById('totalHours');
+    const avgHoursEl = document.getElementById('avgHours');
+    const statusDisplayEl = document.getElementById('statusDisplay');
+    const workdayCountBadge = document.getElementById('workdayCountBadge');
+    const targetToggle = document.getElementById('targetToggle');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // 弹窗 DOM
+    const timeModal = document.getElementById('timeModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalHour = document.getElementById('modalHour');
+    const modalMinute = document.getElementById('modalMinute');
+    const modalClear = document.getElementById('modalClear');
+    const modalConfirm = document.getElementById('modalConfirm');
+
+    // 弹窗状态保存
+    let editingKey = '';
+    let editingType = ''; // 'start' or 'end'
+    let editingBtn = null;
+
+    // ---------- 弹窗逻辑 ----------
+    function openModal(key, type, currentVal, btnEl) {
+        editingKey = key;
+        editingType = type;
+        editingBtn = btnEl;
+        
+        modalTitle.textContent = type === 'start' ? '设置上班时间' : '设置下班时间';
+        
+        if (currentVal && currentVal.includes(':')) {
+            const parts = currentVal.split(':');
+            modalHour.value = parts[0];
+            modalMinute.value = parts[1];
+        } else {
+            modalHour.value = '';
+            modalMinute.value = '';
+        }
+        
+        timeModal.classList.add('show');
+        // 稍微延迟唤起键盘
+        setTimeout(() => modalHour.focus(), 100);
+    }
+
+    function closeModal() {
+        timeModal.classList.remove('show');
+        editingKey = '';
+        editingType = '';
+        editingBtn = null;
+    }
+
+    // 输入限制（只允许数字，且不能超过2位）
+    [modalHour, modalMinute].forEach(inp => {
+        inp.addEventListener('input', () => {
+            inp.value = inp.value.replace(/\D/g, '').slice(0, 2);
+        });
+    });
+
+    // 弹窗点击“清除”
+    modalClear.addEventListener('click', () => {
+        if (!editingKey || !editingType) return;
+        
+        const f = workData[editingKey] || { start: '', end: '' };
+        f[editingType] = '';
+        workData[editingKey] = f;
+        saveWorkData();
+        
+        // 更新按钮UI
+        editingBtn.innerHTML = editingType === 'start' ? '<span class="placeholder">上班时间</span>' : '<span class="placeholder">下班时间</span>';
+        editingBtn.classList.remove('active');
+        
+        updateAll();
+        closeModal();
+    });
+
+    // 弹窗点击“确定”
+    modalConfirm.addEventListener('click', () => {
+        if (!editingKey || !editingType) return;
+        
+        let h = parseInt(modalHour.value);
+        let m = parseInt(modalMinute.value);
+        
+        if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+            alert('请输入合法的时间（时：0-23，分：0-59）');
+            return;
+        }
+        
+        const timeStr = `${pad2(h)}:${pad2(m)}`;
+        
+        const f = workData[editingKey] || { start: '', end: '' };
+        f[editingType] = timeStr;
+        workData[editingKey] = f;
+        saveWorkData();
+        
+        // 更新按钮UI
+        editingBtn.innerHTML = timeStr;
+        editingBtn.classList.add('active');
+        
+        updateAll();
+        closeModal();
+    });
+
+    // 点击遮罩背景关闭弹窗
+    timeModal.addEventListener('click', (e) => {
+        if (e.target === timeModal) closeModal();
+    });
+
+
+    // ---------- 选择器 ----------
+    function initSelectors() {
+        const now = new Date();
+        const cy = now.getFullYear(), cm = now.getMonth() + 1;
+        for (let y = cy - 2; y <= cy + 3; y++) {
+            const o = document.createElement('option');
+            o.value = y; o.textContent = y + '年';
+            if (y === cy) o.selected = true;
+            yearSelect.appendChild(o);
+        }
+        for (let m = 1; m <= 12; m++) {
+            const o = document.createElement('option');
+            o.value = m; o.textContent = m + '月';
+            if (m === cm) o.selected = true;
+            monthSelect.appendChild(o);
+        }
+        currentYear = cy; currentMonth = cm;
+    }
+
+    function getAllWorkdaysOfMonth(year, month) {
+        const days = getDaysInMonth(year, month);
+        const result = [];
+        const prefix = `${year}-${pad2(month)}-`;
+        const holidays = getHolidaysForYear(year);
+        for (let d = 1; d <= days; d++) {
+            const dow = getDayOfWeek(year, month, d);
+            if (dow < 1 || dow > 5) continue;
+            const dateKey = prefix + pad2(d);
+            if (holidays.has(dateKey)) continue;
+            result.push(d);
+        }
+        return result;
+    }
+
+    function isValidFilled(f) {
+        if (!f || !f.start || !f.end) return false;
+        const net = calcFromTimes(f.start, f.end);
+        return net > 0;
+    }
+
+    // ---------- 渲染 ----------
+    function renderMonthList() {
+        const workdays = getAllWorkdaysOfMonth(currentYear, currentMonth);
+        const prefix = `${currentYear}-${pad2(currentMonth)}-`;
+
+        if (workdays.length === 0) {
+            weekListEl.innerHTML = '<div class="no-workday">本月没有工作日（或全部为节假日）</div>';
+            workdayCountBadge.textContent = '0 个工作日';
+            return;
+        }
+
+        let html = '';
+        workdays.forEach(d => {
+            const key = prefix + pad2(d);
+            const f = workData[key] || { start: '', end: '' };
+            const isFuture = isFutureDate(currentYear, currentMonth, d);
+            
+            const startDisplay = f.start || '<span class="placeholder">上班时间</span>';
+            const endDisplay = f.end || '<span class="placeholder">下班时间</span>';
+            const startActive = f.start ? 'active' : '';
+            const endActive = f.end ? 'active' : '';
+
+            html += `
+                <div class="day-row ${isFuture ? 'future' : ''}" data-datekey="${key}">
+                    <div class="day-name">${formatDateLabel(currentYear, currentMonth, d)}</div>
+                    
+                    <button class="time-btn start-btn ${startActive}">${startDisplay}</button>
+                    <button class="time-btn end-btn ${endActive}">${endDisplay}</button>
+
+                    <div class="btn-group">
+                        <button class="mini-btn btn-ok">确定</button>
+                        <button class="mini-btn btn-clear">清除</button>
+                    </div>
+                    <div class="day-hours zero">0.00<small>h</small></div>
+                </div>
+            `;
+        });
+        weekListEl.innerHTML = html;
+        workdayCountBadge.textContent = workdays.length + ' 个工作日';
+
+        // 绑定事件 (过滤未来行)
+        document.querySelectorAll('.day-row:not(.future)').forEach(row => {
+            const key = row.dataset.datekey;
+            const startBtn = row.querySelector('.start-btn');
+            const endBtn = row.querySelector('.end-btn');
+            const okBtn = row.querySelector('.btn-ok');
+            const clearBtn = row.querySelector('.btn-clear');
+
+            // 点击上班按钮弹窗
+            startBtn.addEventListener('click', () => {
+                const f = workData[key] || { start: '', end: '' };
+                openModal(key, 'start', f.start, startBtn);
+            });
+
+            // 点击下班按钮弹窗
+            endBtn.addEventListener('click', () => {
+                const f = workData[key] || { start: '', end: '' };
+                openModal(key, 'end', f.end, endBtn);
+            });
+
+            // 确定：校验并保存
+            okBtn.addEventListener('click', () => {
+                const f = workData[key] || { start: '', end: '' };
+                if (!f.start || !f.end) {
+                    alert('请先设置完整的上下班时间。');
+                    return;
+                }
+                const s = timeToMinutes(f.start);
+                const e = timeToMinutes(f.end);
+                if (s === null || e === null || e <= s) {
+                    alert('下班时间必须晚于上班时间，请重新设置。');
+                    return;
+                }
+                // 由于选时间时已保存到 workData，这里只需重新算一次页面UI并给个提示
+                updateAll();
+            });
+
+            // 清除整行
+            clearBtn.addEventListener('click', () => {
+                workData[key] = { start: '', end: '' };
+                saveWorkData();
+                
+                startBtn.innerHTML = '<span class="placeholder">上班时间</span>';
+                startBtn.classList.remove('active');
+                endBtn.innerHTML = '<span class="placeholder">下班时间</span>';
+                endBtn.classList.remove('active');
+                
+                updateAll();
+            });
+        });
+    }
+
+    // ---------- 汇总 ----------
+    function updateAll() {
+        const prefix = `${currentYear}-${pad2(currentMonth)}-`;
+        const workdays = getAllWorkdaysOfMonth(currentYear, currentMonth);
+        let total = 0;
+        let filledDays = 0;
+        const rows = document.querySelectorAll('.day-row');
+
+        workdays.forEach((d, idx) => {
+            const key = prefix + pad2(d);
+            const f = workData[key] || null;
+            const isFuture = isFutureDate(currentYear, currentMonth, d);
+            
+            // 未来日期的工时强制0
+            const net = isFuture ? 0 : calcFromTimes(f?.start, f?.end);
+            total += net;
+
+            // 非未来，且合法填写了，才计入天数
+            if (!isFuture && isValidFilled(f)) {
+                filledDays++;
+            }
+
+            const row = rows[idx];
+            if (row) {
+                const span = row.querySelector('.day-hours');
+                if (span) {
+                    span.innerHTML = net.toFixed(2) + '<small>h</small>';
+                    span.classList.toggle('zero', net === 0);
+                }
+            }
+        });
+
+        totalHoursEl.innerHTML = `${total.toFixed(2)}<small>h</small>`;
+
+        const avg = filledDays > 0 ? total / filledDays : 0;
+        avgHoursEl.innerHTML = `${avg.toFixed(2)}<small>h</small>`;
+
+        let text = '—', color = '#1e5db0';
+        if (filledDays > 0) {
+            if (avg > currentTarget) { text = '✅ 达标'; color = '#1e7e34'; }
+            else { text = '⚠️ 未达标'; color = '#b33c2e'; }
+        }
+        statusDisplayEl.innerHTML = `<span style="font-size:15px;font-weight:600;color:${color};">${text}</span>`;
+    }
+
+    function setTarget(target) {
+        currentTarget = target;
+        document.querySelectorAll('.toggle-btn').forEach(b => {
+            b.classList.toggle('active', parseFloat(b.dataset.target) === target);
+        });
+        updateAll();
+    }
+
+    function onMonthChange() {
+        currentYear = parseInt(yearSelect.value);
+        currentMonth = parseInt(monthSelect.value);
+        renderMonthList();
+        updateAll();
+    }
+
+    function resetMonth() {
+        const prefix = `${currentYear}-${pad2(currentMonth)}-`;
+        const workdays = getAllWorkdaysOfMonth(currentYear, currentMonth);
+        workdays.forEach(d => {
+            if (!isFutureDate(currentYear, currentMonth, d)) {
+                workData[prefix + pad2(d)] = { start: '', end: '' };
+            }
+        });
+        saveWorkData();
+        renderMonthList();
+        updateAll();
+    }
+
+    function init() {
+        initSelectors();
+        renderMonthList();
+        updateAll();
+
+        yearSelect.addEventListener('change', onMonthChange);
+        monthSelect.addEventListener('change', onMonthChange);
+        targetToggle.addEventListener('click', e => {
+            const btn = e.target.closest('.toggle-btn');
+            if (!btn) return;
+            const t = parseFloat(btn.dataset.target);
+            if (t === 9.2 || t === 9.5) setTarget(t);
+        });
+        resetBtn.addEventListener('click', resetMonth);
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
